@@ -666,6 +666,16 @@ class RunDBInterface(ABC):
     def get_log_size(self, uid, project=""):
         pass
 
+    def store_alert_notifications(
+        self,
+        session,
+        notification_objects: list[mlrun.model.Notification],
+        alert_id: str,
+        project: str,
+        mask_params: bool = True,
+    ):
+        pass
+
     def watch_log(self, uid, project="", watch=True, offset=0):
         pass
 
