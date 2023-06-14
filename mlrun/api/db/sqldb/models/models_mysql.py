@@ -141,6 +141,39 @@ def make_notification(table):
     return Notification
 
 
+def make_alert_state(table):
+    class AlertState(Base, mlrun.utils.db.BaseModel):
+        __tablename__ = f"{table}_alert_states"
+        __table_args__ = ()
+
+        id = Column(Integer, primary_key=True)
+        count = Column(Integer)
+        created = Column(
+            sqlalchemy.dialects.mysql.TIMESTAMP(fsp=3),
+            default=datetime.now(timezone.utc),
+        )
+        last_updated = Column(
+            sqlalchemy.dialects.mysql.TIMESTAMP(fsp=3),
+            default=None,
+        )
+        active = Column(BOOLEAN, default=False)
+
+        parent_id = Column(Integer, ForeignKey(f"{table}.id"))
+
+        _full_object = Column("object", JSON)
+
+        @property
+        def full_object(self):
+            if self._full_object:
+                return json.loads(self._full_object)
+
+        @full_object.setter
+        def full_object(self, value):
+            self._full_object = json.dumps(value, default=str)
+
+    return AlertState
+
+
 # quell SQLAlchemy warnings on duplicate class name (Label)
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
@@ -534,6 +567,37 @@ with warnings.catch_warnings():
         project = Column(String(255, collation=SQLCollationUtil.collation()))
         type = Column(String(255, collation=SQLCollationUtil.collation()))
         _full_object = Column("object", JSON)
+
+        @property
+        def full_object(self):
+            if self._full_object:
+                return json.loads(self._full_object)
+
+        @full_object.setter
+        def full_object(self, value):
+            self._full_object = json.dumps(value, default=str)
+
+    class AlertConfig(Base, mlrun.utils.db.BaseModel):
+        __tablename__ = "alert_configs"
+        __table_args__ = (
+            UniqueConstraint("project", "name", name="_alert_configs_uc"),
+        )
+
+        Notification = make_notification(__tablename__)
+        AlertState = make_alert_state(__tablename__)
+
+        id = Column(Integer, primary_key=True)
+        name = Column(
+            String(255, collation=SQLCollationUtil.collation()), nullable=False
+        )
+        project = Column(
+            String(255, collation=SQLCollationUtil.collation()), nullable=False
+        )
+
+        _full_object = Column("object", JSON)
+
+        def get_identifier_string(self) -> str:
+            return f"{self.project}/{self.name}"
 
         @property
         def full_object(self):

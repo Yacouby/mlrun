@@ -17,12 +17,14 @@ from fastapi import APIRouter, Depends
 import mlrun.api.api.deps
 import mlrun.config
 from mlrun.api.api.endpoints import (
+    alerts,
     artifacts,
     auth,
     background_tasks,
     client_spec,
     clusterization_spec,
     datastore_profile,
+    events,
     feature_store,
     files,
     frontend_spec,
@@ -149,6 +151,16 @@ api_router.include_router(
 api_router.include_router(
     internal.internal_router,
     tags=["internal"],
+    dependencies=[Depends(mlrun.api.api.deps.authenticate_request)],
+)
+api_router.include_router(
+    events.router,
+    tags=["events"],
+    dependencies=[Depends(mlrun.api.api.deps.authenticate_request)],
+)
+api_router.include_router(
+    alerts.router,
+    tags=["alerts"],
     dependencies=[Depends(mlrun.api.api.deps.authenticate_request)],
 )
 api_router.include_router(
