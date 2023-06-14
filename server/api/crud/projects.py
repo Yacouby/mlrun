@@ -170,6 +170,8 @@ class Projects(
         ):
             server.api.crud.Logs().delete_logs(name)
 
+        server.api.crud.Events().delete_alert_events(name)
+
         # delete db resources
         server.api.utils.singletons.db.get_db().delete_project_related_resources(
             session, name
