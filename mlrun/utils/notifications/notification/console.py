@@ -36,6 +36,7 @@ class ConsoleNotification(NotificationBase):
         ] = mlrun.common.schemas.NotificationSeverity.INFO,
         runs: typing.Union[mlrun.lists.RunList, list] = None,
         custom_html: str = None,
+        alert: mlrun.common.schemas.AlertConfig = None,
     ):
         print(f"[{severity}] {message}")
 
