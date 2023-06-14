@@ -691,6 +691,24 @@ class DBInterface(ABC):
         pass
 
     @abstractmethod
+    def store_alert(self, session, alert: mlrun.common.schemas.AlertConfig):
+        pass
+
+    @abstractmethod
+    def create_alert(self, session, alert: mlrun.common.schemas.AlertConfig):
+        pass
+
+    @abstractmethod
+    def store_alert_notifications(
+        self,
+        session,
+        notification_objects: list[mlrun.model.Notification],
+        alert_id: str,
+        project: str,
+    ):
+        pass
+
+    @abstractmethod
     def store_run_notifications(
         self,
         session,
