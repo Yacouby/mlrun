@@ -296,7 +296,7 @@ class Artifact(ModelObj):
     @property
     def uri(self):
         """return artifact uri (store://..)"""
-        return self.get_store_url()
+        return self.get_store_url(with_tag=False)
 
     def to_dataitem(self):
         """return a DataItem object (if available) representing the artifact content"""
