@@ -32,6 +32,130 @@ from mlrun.utils.condition_evaluator import evaluate_condition_in_separate_proce
 from .notification import NotificationBase, NotificationTypes
 
 
+class AlertNotificationPusher(object):
+    def __int__(self):
+        self._async_notification_data = None
+        self._alert = None
+
+    def push(
+        self,
+        notification_data: mlrun.common.schemas.Notification,
+        alert: mlrun.common.schemas.AlertConfig,
+    ):
+        """
+        Asynchronously push notification.
+        """
+
+        self._async_notification_data = notification_data
+        self._alert = alert
+
+        async def _async_push():
+            notification = NotificationTypes(
+                self._async_notification_data.kind
+            ).get_notification()(params=self._async_notification_data.params)
+
+            tasks = [
+                self._push_notification_async(
+                    notification, self._alert, self._async_notification_data
+                )
+            ]
+
+            # return exceptions to "best-effort" fire all notifications
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+        logger.debug("Pushing notification", notification=self._async_notification_data)
+
+        # first push async notifications
+        main_event_loop = asyncio.get_event_loop()
+
+        if not main_event_loop.is_running():
+            # If running mlrun SDK locally, there isn't necessarily an event loop.
+            # We create a new event loop and run the async push function in it.
+            main_event_loop.run_until_complete(_async_push())
+        else:
+            # Running in mlrun api, we are in a separate thread from the one in which
+            # the main event loop, so we can just send the notifications to that loop
+            asyncio.run_coroutine_threadsafe(_async_push(), main_event_loop)
+
+    async def _push_notification_async(
+        self,
+        notification: NotificationBase,
+        alert: mlrun.common.schemas.AlertConfig,
+        notification_object: mlrun.common.schemas.Notification,
+    ):
+        message, severity = self._prepare_notification_args(alert, notification_object)
+        logger.debug(
+            "Pushing async notification",
+            notification=notification_object,
+            name=alert.name,
+        )
+        try:
+            await notification.push(message, severity, alert=alert)
+            logger.debug(
+                "Notification sent successfully",
+                notification=notification_object,
+                name=alert.name,
+            )
+            await mlrun.utils.helpers.run_in_threadpool(
+                self._update_notification_status,
+                alert.id,
+                alert.project,
+                notification_object,
+                status=mlrun.common.schemas.NotificationStatus.SENT,
+                sent_time=datetime.datetime.now(tz=datetime.timezone.utc),
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to send notification",
+                notification=notification_object,
+                name=alert.name,
+                exc=mlrun.errors.err_to_str(exc),
+            )
+            await mlrun.utils.helpers.run_in_threadpool(
+                self._update_notification_status,
+                alert.id,
+                alert.project,
+                notification_object,
+                status=mlrun.common.schemas.NotificationStatus.ERROR,
+            )
+            raise exc
+
+    @staticmethod
+    def _prepare_notification_args(
+        alert: mlrun.common.schemas.AlertConfig,
+        notification_object: mlrun.common.schemas.Notification,
+    ):
+        message = (
+            f": {notification_object.message}" if notification_object.message else ""
+        )
+
+        severity = (
+            notification_object.severity
+            or mlrun.common.schemas.NotificationSeverity.INFO
+        )
+        return message, severity
+
+    @staticmethod
+    def _update_notification_status(
+        alert_id: int,
+        project: str,
+        notification: mlrun.common.schemas.Notification,
+        status: str = None,
+        sent_time: typing.Optional[datetime.datetime] = None,
+    ):
+        db = mlrun.get_run_db()
+        notification.status = status or notification.status
+        notification.sent_time = sent_time or notification.sent_time
+
+        # There is no need to mask the params as the secrets are already loaded
+        # db.store_run_notifications(  ###
+        #    [notification],
+        #    alert_id,
+        #    project,
+        #    mask_params=False,
+        # )
+
+
 class NotificationPusher(object):
 
     messages = {

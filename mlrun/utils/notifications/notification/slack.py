@@ -42,6 +42,7 @@ class SlackNotification(NotificationBase):
         ] = mlrun.common.schemas.NotificationSeverity.INFO,
         runs: typing.Union[mlrun.lists.RunList, list] = None,
         custom_html: str = None,
+        alert: mlrun.common.schemas.AlertConfig = None,
     ):
         webhook = self.params.get("webhook", None) or mlrun.get_secret_or_env(
             "SLACK_WEBHOOK"
@@ -53,7 +54,7 @@ class SlackNotification(NotificationBase):
             )
             return
 
-        data = self._generate_slack_data(message, severity, runs)
+        data = self._generate_slack_data(message, severity, runs, alert)
 
         async with aiohttp.ClientSession() as session:
             async with session.post(webhook, json=data) as response:
@@ -66,6 +67,7 @@ class SlackNotification(NotificationBase):
             mlrun.common.schemas.NotificationSeverity, str
         ] = mlrun.common.schemas.NotificationSeverity.INFO,
         runs: typing.Union[mlrun.lists.RunList, list] = None,
+        alert: mlrun.common.schemas.AlertConfig = None,
     ) -> dict:
         data = {
             "blocks": [
@@ -80,21 +82,32 @@ class SlackNotification(NotificationBase):
                 {"type": "section", "text": self._get_slack_row(self.name)}
             )
 
-        if not runs:
-            return data
+        if alert:
+            fields = [self._get_slack_row("*Alert*")]
+            fields.append(self._get_alert_line(alert))
 
-        if isinstance(runs, list):
-            runs = mlrun.lists.RunList(runs)
+            for i in range(0, len(fields), 8):
+                data["blocks"].append({"type": "section", "fields": fields[i : i + 8]})
+        else:
+            if not runs:
+                return data
 
-        fields = [self._get_slack_row("*Runs*"), self._get_slack_row("*Results*")]
-        for run in runs:
-            fields.append(self._get_run_line(run))
-            fields.append(self._get_run_result(run))
+            if isinstance(runs, list):
+                runs = mlrun.lists.RunList(runs)
 
-        for i in range(0, len(fields), 8):
-            data["blocks"].append({"type": "section", "fields": fields[i : i + 8]})
+            fields = [self._get_slack_row("*Runs*"), self._get_slack_row("*Results*")]
+            for run in runs:
+                fields.append(self._get_run_line(run))
+                fields.append(self._get_run_result(run))
+
+            for i in range(0, len(fields), 8):
+                data["blocks"].append({"type": "section", "fields": fields[i : i + 8]})
 
         return data
+
+    def _get_alert_line(self, alert: dict) -> dict:
+        line = f"{alert.name} has occurred"
+        return self._get_slack_row(line)
 
     def _get_run_line(self, run: dict) -> dict:
         meta = run["metadata"]

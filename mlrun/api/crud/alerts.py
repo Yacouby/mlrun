@@ -205,6 +205,10 @@ class Alerts(
                 logger.debug(
                     f"Sending notification {alert.name} !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
                 )
+                for notification in alert.notifications:
+                    mlrun.utils.notifications.AlertNotificationPusher().push(
+                        notification, alert
+                    )
 
                 if alert.reset_policy == "auto":
                     self.reset_alert(session, alert_id)

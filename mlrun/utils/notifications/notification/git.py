@@ -38,6 +38,7 @@ class GitNotification(NotificationBase):
         ] = mlrun.common.schemas.NotificationSeverity.INFO,
         runs: typing.Union[mlrun.lists.RunList, list] = None,
         custom_html: str = None,
+        alert: mlrun.common.schemas.AlertConfig = None,
     ):
         git_repo = self.params.get("repo", None)
         git_issue = self.params.get("issue", None)
@@ -50,7 +51,7 @@ class GitNotification(NotificationBase):
         server = self.params.get("server", None)
         gitlab = self.params.get("gitlab", False)
         await self._pr_comment(
-            self._get_html(message, severity, runs, custom_html),
+            self._get_html(message, severity, runs, alert, custom_html),
             git_repo,
             git_issue,
             merge_request=git_merge_request,

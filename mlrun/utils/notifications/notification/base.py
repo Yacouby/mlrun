@@ -44,6 +44,7 @@ class NotificationBase:
         ] = mlrun.common.schemas.NotificationSeverity.INFO,
         runs: typing.Union[mlrun.lists.RunList, list] = None,
         custom_html: str = None,
+        alert: mlrun.common.schemas.AlertConfig = None,
     ):
         raise NotImplementedError()
 
@@ -60,6 +61,7 @@ class NotificationBase:
             mlrun.common.schemas.NotificationSeverity, str
         ] = mlrun.common.schemas.NotificationSeverity.INFO,
         runs: typing.Union[mlrun.lists.RunList, list] = None,
+        alert: mlrun.common.schemas.AlertConfig = None,
         custom_html: str = None,
     ) -> str:
         if custom_html:
@@ -67,6 +69,9 @@ class NotificationBase:
 
         if self.name:
             message = f"{self.name}: {message}"
+
+        if alert:
+            return f"[{severity}] {message}"
 
         if not runs:
             return f"[{severity}] {message}"
