@@ -3957,6 +3957,23 @@ class SQLDB(DBInterface):
 
         self._store_notifications(session, Run, notification_objects, run.id, project)
 
+    def store_alert_notifications(
+        self,
+        session,
+        notification_objects: typing.List[mlrun.model.Notification],
+        alert_id: str,
+        project: str,
+    ):
+        alert = self._get_alert_by_id(session, alert_id)
+        if not alert:
+            raise mlrun.errors.MLRunNotFoundError(
+                f"Alert not found: uid={alert_id}, project={project}"
+            )
+
+        self._store_notifications(
+            session, AlertConfig, notification_objects, alert_id, project
+        )
+
     def _store_notifications(
         self,
         session,

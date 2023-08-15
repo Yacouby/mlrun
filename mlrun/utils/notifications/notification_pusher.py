@@ -148,12 +148,12 @@ class AlertNotificationPusher(object):
         notification.sent_time = sent_time or notification.sent_time
 
         # There is no need to mask the params as the secrets are already loaded
-        # db.store_run_notifications(  ###
-        #    [notification],
-        #    alert_id,
-        #    project,
-        #    mask_params=False,
-        # )
+        db.store_alert_notifications(
+            [notification],
+            alert_id,
+            project,
+            mask_params=False,
+        )
 
 
 class NotificationPusher(object):
