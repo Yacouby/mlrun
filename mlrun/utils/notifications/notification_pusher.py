@@ -50,9 +50,12 @@ class AlertNotificationPusher(object):
         self._alert = alert
 
         async def _async_push():
-            notification = NotificationTypes(
-                self._async_notification_data.kind
-            ).get_notification()(params=self._async_notification_data.params)
+            notification = mlrun.api.api.utils.unmask_notification_params_secret(
+                self._alert.project,
+                NotificationTypes(
+                    self._async_notification_data.kind
+                ).get_notification()(params=self._async_notification_data.params),
+            )
 
             tasks = [
                 self._push_notification_async(
