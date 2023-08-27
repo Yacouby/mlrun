@@ -144,7 +144,9 @@ def make_notification(table):
 def make_alert_state(table):
     class AlertState(Base, mlrun.utils.db.BaseModel):
         __tablename__ = f"{table}_alert_states"
-        __table_args__ = ()
+        __table_args__ = (
+            UniqueConstraint("id", "parent_id", name=f"_{table}_alert_states_uc"),
+        )
 
         id = Column(Integer, primary_key=True)
         count = Column(Integer)
@@ -593,6 +595,9 @@ with warnings.catch_warnings():
         project = Column(
             String(255, collation=SQLCollationUtil.collation()), nullable=False
         )
+
+        notifications = relationship(Notification, cascade="all, delete-orphan")
+        alerts = relationship(AlertState, cascade="all, delete-orphan")
 
         _full_object = Column("object", JSON)
 
