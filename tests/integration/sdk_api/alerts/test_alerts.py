@@ -43,7 +43,6 @@ def _generate_alert_create_request(
                 "when": ["now"],
                 "params": {
                     "webhook": "https://hooks.slack.com/services/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",
-                    "secret": "",
                 },
                 "condition": "oops",
             },

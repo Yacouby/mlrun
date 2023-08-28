@@ -53,7 +53,7 @@ class Alerts(
             mlrun.api.crud.Events().add_event(project, kind, new_alert.id)
 
         mlrun.api.api.utils.validate_and_mask_notification_list(
-            alert_data.notifications, alert_data.entity.id, project
+            alert_data.notifications, new_alert.id, project
         )
 
         mlrun.api.utils.singletons.db.get_db().enrich_alert(session, new_alert)
@@ -99,7 +99,7 @@ class Alerts(
         self._delete_notifications(alert)
 
         mlrun.api.api.utils.validate_and_mask_notification_list(
-            alert_data.notifications, alert_data.entity.id, project
+            alert_data.notifications, new_alert.id, project
         )
 
         self.reset_alert(session, project, alert.id)
