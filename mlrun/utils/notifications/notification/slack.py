@@ -106,7 +106,7 @@ class SlackNotification(NotificationBase):
         return data
 
     def _get_alert_line(self, alert: dict) -> dict:
-        line = f"{alert.name} has occurred"
+        line = f"{alert.name} has occurred for project {alert.project}"
         return self._get_slack_row(line)
 
     def _get_run_line(self, run: dict) -> dict:

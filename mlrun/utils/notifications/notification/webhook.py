@@ -53,7 +53,7 @@ class WebhookNotification(NotificationBase):
             request_body["runs"] = runs
 
         if alert:
-            request_body["alert"] = alert
+            request_body["alert"] = alert.dict()
 
         if custom_html:
             request_body["custom_html"] = custom_html
