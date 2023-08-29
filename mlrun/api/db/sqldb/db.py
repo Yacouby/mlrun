@@ -3784,23 +3784,27 @@ class SQLDB(DBInterface):
         session,
         project: str,
     ):
-        # TODO: Yan
-        pass
+        resp = self._query(session, AlertConfig, project=project).all()
+        if resp:
+            for alert in resp:
+                self._delete_alert_notifications(
+                    session, alert.name, alert, project, commit=False
+                )
+                session.delete(alert)
+
+            session.commit()
 
     def _delete_alert_notifications(
-        self,
-        session,
-        name: str,
-        alert: AlertConfig,
-        project: str,
+        self, session, name: str, alert: AlertConfig, project: str, commit: bool = True
     ):
         query = self._get_db_notifications(
-            session, AlertConfig, name, project, alert.id
+            session, AlertConfig, None, alert.id, project
         )
         for notification in query:
             session.delete(notification)
 
-        session.commit()
+        if commit:
+            session.commit()
 
     @retry_on_conflict
     def store_background_task(

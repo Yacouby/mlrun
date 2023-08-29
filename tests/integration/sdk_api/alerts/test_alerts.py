@@ -296,3 +296,21 @@ class TestAlerts(tests.integration.sdk_api.base.TestMLRunIntegration):
         assert response.status_code == HTTPStatus.OK.value
         resp_dict = json.loads(response.text)
         assert len(resp_dict) == 0
+
+        mlrun.get_run_db().delete_project(project_name)
+
+        mlrun.new_project(project_name)
+
+        response = mlrun.get_run_db().api_call(
+            "POST",
+            f"projects/{project_name}/alerts/{alert_name}",
+            body=_generate_alert_create_request(
+                project_name, alert_name, alert_entity, alert_summary, event_name
+            ),
+        )
+        assert response.status_code == HTTPStatus.OK.value
+
+        mlrun.get_run_db().delete_project(
+            project_name,
+            deletion_strategy=mlrun.common.schemas.DeletionStrategy.cascade.value,
+        )
