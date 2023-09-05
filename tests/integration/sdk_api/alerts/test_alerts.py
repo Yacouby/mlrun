@@ -41,8 +41,8 @@ def _generate_alert_create_request(
                 "message": "Ay caramba!",
                 "severity": "warning",
                 "when": ["now"],
-                "params": {
-                    "webhook": "https://hooks.slack.com/services/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",
+                "secret_params": {
+                    "webhook": "https://hooks.slack.com/services/",
                 },
                 "condition": "oops",
             },
@@ -135,6 +135,9 @@ class TestAlerts(tests.integration.sdk_api.base.TestMLRunIntegration):
                 "severity": "warning",
                 "when": ["now"],
                 "condition": "failed",
+                "secret_params": {
+                    "webhook": "https://hooks.slack.com/services/",
+                },
             },
             {
                 "kind": "git",
@@ -143,6 +146,9 @@ class TestAlerts(tests.integration.sdk_api.base.TestMLRunIntegration):
                 "severity": "warning",
                 "when": ["now"],
                 "condition": "failed",
+                "secret_params": {
+                    "webhook": "https://hooks.slack.com/services/",
+                },
             },
         ]
 
