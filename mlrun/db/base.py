@@ -609,6 +609,26 @@ class RunDBInterface(ABC):
     ):
         pass
 
+    @abstractmethod
+    def generate_event(self, name, event_data, project=""):
+        pass
+
+    @abstractmethod
+    def create_alert(self, name, alert_data, project=""):
+        pass
+
+    @abstractmethod
+    def delete_alert(self, alert_id, project=""):
+        pass
+
+    @abstractmethod
+    def get_alert(self, alert_id, project=""):
+        pass
+
+    @abstractmethod
+    def list_alerts(self, project=""):
+        pass
+
     def get_builder_status(
         self,
         func: "mlrun.runtimes.BaseRuntime",

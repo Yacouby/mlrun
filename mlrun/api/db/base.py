@@ -670,3 +670,18 @@ class DBInterface(ABC):
         project: str,
     ) -> List[mlrun.common.schemas.DatastoreProfile]:
         pass
+
+    def generate_event(self, name, event_data, project=""):
+        pass
+
+    def create_alert(self, name, alert_data, project=""):
+        pass
+
+    def delete_alert(self, alert_id, project=""):
+        pass
+
+    def get_alert(self, alert_id, project=""):
+        pass
+
+    def list_alerts(self, project=""):
+        pass

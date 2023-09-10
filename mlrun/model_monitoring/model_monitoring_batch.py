@@ -436,6 +436,26 @@ class VirtualDrift:
 
         return drift_status
 
+    @staticmethod
+    def generate_event_on_drift(drift_status, drift_measure, project):
+        if (
+            drift_status
+            == mlrun.common.schemas.model_monitoring.DriftStatus.DRIFT_DETECTED
+            or drift_status
+            == mlrun.common.schemas.model_monitoring.DriftStatus.POSSIBLE_DRIFT
+        ):
+            entity = {"kind": "model", "project": project, "id": "*"}
+            event_kind = (
+                "drift_detected"
+                if drift_status
+                == mlrun.common.schemas.model_monitoring.DriftStatus.DRIFT_DETECTED
+                else "drift_suspected"
+            )
+            event_data = mlrun.common.schemas.alert.Event(
+                kind=event_kind, entity=entity, value=drift_measure
+            ).dict()
+            mlrun.get_run_db().generate_event(event_kind, event_data)
+
 
 def calculate_inputs_statistics(
     sample_set_statistics: dict, inputs: pd.DataFrame
@@ -794,6 +814,10 @@ class BatchProcessor:
                 ],
                 drift_status=drift_status.value,
                 drift_measure=drift_measure,
+            )
+
+            self.virtual_drift.generate_event_on_drift(
+                drift_status, drift_measure, self.project
             )
 
             attributes = {
