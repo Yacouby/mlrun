@@ -3722,6 +3722,7 @@ class SQLDB(DBInterface):
             if state.active
             else mlrun.common.schemas.AlertActiveState.INACTIVE
         )
+        alert.count = state.count
 
     @staticmethod
     def _transform_alert_config_record_to_schema(
@@ -3766,13 +3767,14 @@ class SQLDB(DBInterface):
         self,
         session,
         alert_id: int,
-        count: int,
         last_updated: datetime,
+        count: typing.Union[int, None] = None,
         active: bool = False,
         obj: dict = None,
     ):
         state = self.get_alert_state(session, alert_id)
-        state.count = count
+        if count is not None:
+            state.count = count
         state.last_updated = last_updated
         state.active = active
         if obj is not None:

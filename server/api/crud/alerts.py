@@ -186,56 +186,52 @@ class Alerts(
             session, alert_id
         )
 
-        state.count += 1
         state_obj = None
         if alert.entity.id == "*" or alert.entity.id == event_data.entity.id:
             send_notification = False
             if alert.criteria is not None:
+                state_obj = state.full_object
+
+                if state_obj is None:
+                    state_obj = {"events": [event_data.timestamp]}
+
                 if alert.criteria.period is not None:
-                    state_obj = state.full_object
+                    state_obj["events"].append(event_data.timestamp)
+                    self._normalize_events(
+                        state_obj, self._string2datetime(alert.criteria.period)
+                    )
 
-                    if state_obj is None:
-                        state_obj = {"events": [event_data.timestamp]}
-                    else:
-                        state_obj["events"].append(event_data.timestamp)
-                        self._normalize_events(
-                            state_obj, self._string2datetime(alert.criteria.period)
-                        )
-
-                    state.count = len(state_obj["events"])
-                    if state.count >= alert.criteria.count:
+                    count = len(state_obj["events"])
+                    if count >= alert.criteria.count:
                         send_notification = True
                 else:
-                    if state.count >= alert.criteria.count:
+                    count = len(state_obj["events"])
+                    if count >= alert.criteria.count:
                         send_notification = True
             else:
                 send_notification = True
 
+            active = False
             if send_notification:
+                state.count += 1
                 logger.debug(
                     f"Sending notification {alert.name} !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
                 )
                 AlertNotificationPusher().push(alert, event_data)
 
                 if alert.reset_policy == "auto":
-                    self.reset_alert(session, alert_id)
+                    self.reset_alert(session, alert.project, alert_id)
                 else:
-                    server.api.utils.singletons.db.get_db().store_alert_state(
-                        session,
-                        alert_id,
-                        count=state.count,
-                        last_updated=event_data.timestamp,
-                        active=True,
-                        obj=state_obj,
-                    )
-            else:
-                server.api.utils.singletons.db.get_db().store_alert_state(
-                    session,
-                    alert_id,
-                    count=state.count,
-                    last_updated=event_data.timestamp,
-                    obj=state_obj,
-                )
+                    active = True
+
+            server.api.utils.singletons.db.get_db().store_alert_state(
+                session,
+                alert_id,
+                count=state.count,
+                last_updated=event_data.timestamp,
+                obj=state_obj,
+                active=active,
+            )
 
     @staticmethod
     def _validate_alert(alert, alert_id, project):
@@ -303,7 +299,7 @@ class Alerts(
             )
 
         server.api.utils.singletons.db.get_db().store_alert_state(
-            session, alert_id, count=0, last_updated=None
+            session, alert_id, last_updated=None
         )
 
     def _delete_notifications(self, alert: mlrun.common.schemas.AlertConfig):

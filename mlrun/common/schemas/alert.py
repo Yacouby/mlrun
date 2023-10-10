@@ -114,3 +114,4 @@ class AlertConfig(pydantic.BaseModel):
     reset_policy: ResetPolicy = ResetPolicy.MANUAL
     notifications: pydantic.conlist(Notification, min_items=1)
     state: AlertActiveState = AlertActiveState.INACTIVE
+    count: Optional[int] = 0

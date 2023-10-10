@@ -118,6 +118,7 @@ class TestAlerts(tests.integration.sdk_api.base.TestMLRunIntegration):
         assert resp_dict["name"] == alert_name
         assert resp_dict["summary"] == alert_summary
         assert resp_dict["state"] == "inactive"
+        assert resp_dict["count"] == 0
 
         # try to create same alert again
         with pytest.raises(mlrun.errors.MLRunConflictError):
@@ -248,6 +249,7 @@ class TestAlerts(tests.integration.sdk_api.base.TestMLRunIntegration):
         assert resp_dict["summary"] == new_summary
         assert resp_dict["trigger"]["events"] == [new_event_name]
         assert resp_dict["state"] == "inactive"
+        assert resp_dict["count"] == 1
 
         # post new event to make sure the alert handles it
         response = mlrun.get_run_db().api_call(
@@ -263,6 +265,7 @@ class TestAlerts(tests.integration.sdk_api.base.TestMLRunIntegration):
         assert response.status_code == HTTPStatus.OK.value
         resp_dict = json.loads(response.text)
         assert resp_dict["state"] == "active"
+        assert resp_dict["count"] == 2
 
         # reset alert
         response = mlrun.get_run_db().api_call(
