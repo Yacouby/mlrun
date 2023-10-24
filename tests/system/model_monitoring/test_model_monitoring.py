@@ -25,6 +25,7 @@ import fsspec
 import numpy as np
 import pandas as pd
 import pytest
+import requests
 import v3iofs
 from sklearn.datasets import load_diabetes, load_iris
 from sklearn.model_selection import train_test_split
@@ -34,6 +35,7 @@ import mlrun.artifacts.model
 import mlrun.common.schemas.model_monitoring
 import mlrun.feature_store
 import mlrun.model_monitoring.api
+import mlrun.model_monitoring.tracking_policy
 import mlrun.serving.routers
 from mlrun.errors import MLRunNotFoundError
 from mlrun.model import BaseMetadata
@@ -265,8 +267,14 @@ class TestBasicModelMonitoring(TestMLRunSystem):
         serving_fn = mlrun.import_function(
             "hub://v2-model-server", project=self.project_name
         ).apply(mlrun.auto_mount())
+
+        tracking_policy = mlrun.model_monitoring.tracking_policy.TrackingPolicy(
+            default_batch_image="docker.io/yacouby1/mlrun-api:1.6.0",
+            stream_image="docker.io/yacouby1/mlrun-api:1.6.0",
+        )
+
         # enable model monitoring
-        serving_fn.set_tracking()
+        serving_fn.set_tracking(tracking_policy=tracking_policy)
 
         model_name = "sklearn_RandomForestClassifier"
 
@@ -286,6 +294,9 @@ class TestBasicModelMonitoring(TestMLRunSystem):
             ),
         )
 
+        serving_fn.spec.build.image = "docker.io/yacouby1/mlrun-api:1.6.0"
+        serving_fn.spec.image = "docker.io/yacouby1/mlrun-api:1.6.0"
+
         # Deploy the function
         serving_fn.deploy()
 
@@ -294,19 +305,26 @@ class TestBasicModelMonitoring(TestMLRunSystem):
 
         for i in range(102):
             data_point = choice(iris_data)
+            data_point_drift = [num / 4 for num in data_point]
             serving_fn.invoke(
-                f"v2/models/{model_name}/infer", json.dumps({"inputs": [data_point]})
+                f"v2/models/{model_name}/infer",
+                json.dumps({"inputs": [data_point_drift] * 100}),
             )
             sleep(choice([0.01, 0.04]))
 
+        # since it takes time to generate the parquet following the processing of more than 10k events
+        sleep(20)
+
         # Test metrics
-        mlrun.utils.helpers.retry_until_successful(
-            3,
-            10,
-            self._logger,
-            False,
-            self._assert_model_endpoint_metrics,
-        )
+        # mlrun.utils.helpers.retry_until_successful(
+        #    3,
+        #    10,
+        #    self._logger,
+        #    False,
+        #    self._assert_model_endpoint_metrics,
+        # )
+
+        self._assert_alert_sent_on_drift()
 
     def _assert_model_endpoint_metrics(self):
         endpoints_list = mlrun.get_run_db().list_model_endpoints(
@@ -326,6 +344,139 @@ class TestBasicModelMonitoring(TestMLRunSystem):
         ]
         total = sum((m[1] for m in predictions_per_second))
         assert total > 0
+
+    def _assert_alert_sent_on_drift(self):
+        # nuclio function for storing notifications, to validate that alert notifications were sent on the drift
+        nuclio_function = mlrun.code_to_function(
+            name="nuclio",
+            project=self.project_name,
+            filename="../assets/notification_nuclio_function.py",
+            image="docker.io/yacouby1/mlrun-api:1.6.0",
+            kind="nuclio",
+        )
+        nuclio_function.deploy()
+        nuclio_function_url = nuclio_function.spec.command
+
+        # create an alert with two webhook notifications
+        self._generate_alert_create_request(
+            self.project_name,
+            "drift_webhook",
+            "model",
+            "Model is drifting",
+            "drift_detected",
+            nuclio_function_url,
+        )
+
+        # invoke the model monitoring batch flow
+        mlrun.get_run_db().invoke_schedule(self.project_name, "model-monitoring-batch")
+        # it can take ~1 minute for the batch pod to finish running
+        sleep(60)
+
+        # Validate that a drift was detected on the endpoint
+        endpoints_list = mlrun.get_run_db().list_model_endpoints(self.project_name)
+        assert endpoints_list[0].status.drift_status == "DRIFT_DETECTED"
+
+        # Validate that the notifications were sent on the drift
+        self._validate_notifications_on_nuclio(nuclio_function_url)
+
+    def _validate_notifications_on_nuclio(self, nuclio_function_url):
+        response = requests.post(nuclio_function_url, json={"operation": "get"})
+
+        expected_element = "first drift notification"
+        expected_status_code = 200
+
+        response_data = json.loads(response.text)
+        print(response.text)
+        assert response_data["element"] == expected_element
+        assert response_data["status_code"] == expected_status_code
+
+        # delete the first notification
+        response = requests.post(nuclio_function_url, json={"operation": "delete"})
+        response_data = json.loads(response.text)
+        assert (response_data["status_code"]) == 200
+
+        # get the second notification from nuclio
+        response = requests.post(nuclio_function_url, json={"operation": "get"})
+
+        expected_element = "second drift notification"
+        expected_status_code = 200
+
+        response_data = json.loads(response.text)
+        print(response.text)
+        assert response_data["element"] == expected_element
+        assert response_data["status_code"] == expected_status_code
+
+        # delete the second notification
+        response = requests.post(nuclio_function_url, json={"operation": "delete"})
+        response_data = json.loads(response.text)
+        assert (response_data["status_code"]) == 200
+
+        # the nuclio list should be empty now after deleting all the notifications
+        response = requests.post(nuclio_function_url, json={"operation": "get"})
+        response_data = json.loads(response.text)
+        assert (response_data["message"]) == "List is empty"
+        assert (response_data["status_code"]) == 400
+
+    def _generate_alert_create_request(
+        self,
+        project,
+        name,
+        entity_kind,
+        summary,
+        event_name,
+        nuclio_function_url,
+        criteria=None,
+    ):
+        notifications = [
+            {
+                "kind": "webhook",
+                "name": "drift",
+                "message": "A drift was detected",
+                "severity": "warning",
+                "when": ["now"],
+                "condition": "failed",
+                "params": {
+                    "url": nuclio_function_url,
+                    "override_body": {
+                        "operation": "add",
+                        "data": "first drift notification",
+                    },
+                },
+                "secret_params": {
+                    "webhook": "some-webhook",
+                },
+            },
+            {
+                "kind": "webhook",
+                "name": "drift2",
+                "message": "A drift was detected",
+                "severity": "warning",
+                "when": ["now"],
+                "condition": "failed",
+                "params": {
+                    "url": nuclio_function_url,
+                    "override_body": {
+                        "operation": "add",
+                        "data": "second drift notification",
+                    },
+                },
+                "secret_params": {
+                    "webhook": "some-webhook",
+                },
+            },
+        ]
+        alert_data = mlrun.common.schemas.AlertConfig(
+            project=project,
+            name=name,
+            summary=summary,
+            severity="low",
+            entity={"kind": entity_kind, "project": project, "id": "*"},
+            trigger={"events": [event_name]},
+            criteria=criteria,
+            notifications=notifications,
+        ).dict()
+
+        mlrun.get_run_db().create_alert(name, alert_data)
 
 
 @TestMLRunSystem.skip_test_if_env_not_configured

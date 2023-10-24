@@ -558,7 +558,7 @@ run-api: api ## Run mlrun api (dockerized)
 		--name mlrun-api \
 		--detach \
 		--publish 8080 \
-		--add-host host.docker.internal:host-gateway \
+		--add-host host.docker.internal:172.17.0.1 \
 		--env MLRUN_HTTPDB__DSN=$(MLRUN_HTTPDB__DSN) \
 		--env MLRUN_LOG_LEVEL=$(MLRUN_LOG_LEVEL) \
 		--env MLRUN_SECRET_STORES__TEST_MODE_MOCK_SECRETS=$(MLRUN_SECRET_STORES__TEST_MODE_MOCK_SECRETS) \

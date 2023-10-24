@@ -218,7 +218,7 @@ class Alerts(
                 AlertNotificationPusher().push(alert, event_data)
 
                 if alert.reset_policy == "auto":
-                    self.reset_alert(session, alert_id)
+                    self.reset_alert(session, alert.project, alert_id)
                 else:
                     server.api.utils.singletons.db.get_db().store_alert_state(
                         session,

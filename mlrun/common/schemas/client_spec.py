@@ -66,3 +66,4 @@ class ClientSpec(pydantic.BaseModel):
     generate_artifact_target_path_from_artifact_hash: typing.Optional[str]
     logs: typing.Optional[dict]
     packagers: typing.Optional[dict]
+    alerts_mode: typing.Optional[str]
