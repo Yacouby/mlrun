@@ -27,11 +27,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+import requests
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
 
 import mlrun
+import mlrun.common.schemas.alert as alert_constants
 import mlrun.common.schemas.model_monitoring.constants as mm_constants
 import mlrun.feature_store
 import mlrun.feature_store as fstore
@@ -265,6 +267,16 @@ class TestMonitoringAppFlow(TestMLRunSystem, _V3IORecordsChecker):
 
         return inputs, outputs
 
+    def _deploy_notification_nuclio(self):
+        nuclio_function = self.project.set_function(
+            name="nuclio",
+            func="assets/notification_nuclio_function.py",
+            image="mlrun/mlrun" if self.image is None else self.image,
+            kind="nuclio",
+        )
+        nuclio_function.deploy()
+        return nuclio_function.spec.command
+
     @classmethod
     def _deploy_model_serving(
         cls, with_training_set: bool
@@ -307,6 +319,81 @@ class TestMonitoringAppFlow(TestMLRunSystem, _V3IORecordsChecker):
         assert endpoints and len(endpoints) == 1
         return endpoints[0].metadata.uid
 
+    @classmethod
+    def _create_alert_config(
+        cls,
+        project,
+        name,
+        entity_kind,
+        summary,
+        event_name,
+        nuclio_function_url,
+        criteria=None,
+    ):
+        notifications = [
+            {
+                "kind": "webhook",
+                "name": "drift",
+                "message": "A drift was detected",
+                "severity": "warning",
+                "when": ["now"],
+                "condition": "failed",
+                "params": {
+                    "url": nuclio_function_url,
+                    "override_body": {
+                        "operation": "add",
+                        "data": "first drift",
+                    },
+                },
+                "secret_params": {
+                    "webhook": "some-webhook",
+                },
+            },
+            {
+                "kind": "webhook",
+                "name": "drift2",
+                "message": "A drift was detected",
+                "severity": "warning",
+                "when": ["now"],
+                "condition": "failed",
+                "params": {
+                    "url": nuclio_function_url,
+                    "override_body": {
+                        "operation": "add",
+                        "data": "second drift",
+                    },
+                },
+                "secret_params": {
+                    "webhook": "some-webhook",
+                },
+            },
+        ]
+        alert_data = mlrun.common.schemas.AlertConfig(
+            project=project,
+            name=name,
+            summary=summary,
+            severity="low",
+            entity={"kind": entity_kind, "project": project, "id": "*"},
+            trigger={"events": [event_name]},
+            criteria=criteria,
+            notifications=notifications,
+        ).dict()
+
+        mlrun.get_run_db().store_alert_config(name, alert_data)
+
+    @classmethod
+    def _validate_notifications_on_nuclio(cls, nuclio_function_url):
+        response = requests.post(nuclio_function_url, json={"operation": "list"})
+        response_data = json.loads(response.text)
+
+        # Extract notification data from the response
+        notifications = response_data["data_list"]
+
+        for expected_notification in ["first drift", "second drift"]:
+            assert expected_notification in notifications
+
+        requests.post(nuclio_function_url, json={"operation": "reset"})
+
     @pytest.mark.parametrize("with_training_set", [True, False])
     def test_app_flow(self, with_training_set) -> None:
         self.project = typing.cast(mlrun.projects.MlrunProject, self.project)
@@ -331,6 +418,22 @@ class TestMonitoringAppFlow(TestMLRunSystem, _V3IORecordsChecker):
         serving_fn = future.result()
 
         time.sleep(5)
+
+        # deploy nuclio func for storing notifications, to validate an alert notifications were sent on drift detection
+        nuclio_function_url = self._deploy_notification_nuclio()
+
+        # create an alert with two webhook notifications
+        alert_name = "drift_webhook"
+        alert_summary = "Model is drifting"
+        self._create_alert_config(
+            self.project_name,
+            alert_name,
+            alert_constants.EventEntityKind.MODEL,
+            alert_summary,
+            alert_constants.EventKind.DRIFT_DETECTED,
+            nuclio_function_url,
+        )
+
         self._infer(serving_fn, with_training_set=with_training_set)
         # mark the first window as "done" with another request
         time.sleep(
@@ -345,6 +448,9 @@ class TestMonitoringAppFlow(TestMLRunSystem, _V3IORecordsChecker):
         self._test_v3io_records(
             ep_id=self._get_model_endpoint_id(), inputs=inputs, outputs=outputs
         )
+
+        # Validate that the notifications were sent on the drift
+        self._validate_notifications_on_nuclio(nuclio_function_url)
 
 
 @TestMLRunSystem.skip_test_if_env_not_configured
