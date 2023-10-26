@@ -3763,6 +3763,46 @@ class MlrunProject(ModelObj):
 
         mlrun.db.get_run_db().delete_api_gateway(name=name, project=self.name)
 
+    def store_alert_config(self, alert_name, alert_data):
+        """
+        Create/modify an alert.
+        :param alert_name: id of the alert.
+        :param alert_data: the data of the alert.
+        """
+        db = mlrun.db.get_run_db(secrets=self._secrets)
+        return db.store_alert_config(alert_name, alert_data, self.metadata.name)
+
+    def get_alert_config(self, alert_name):
+        """
+        Retrieve an alert.
+        :param alert_name: id of the alert to retrieve.
+        """
+        db = mlrun.db.get_run_db(secrets=self._secrets)
+        return db.get_alert_config(alert_name, self.metadata.name)
+
+    def list_alerts_configs(self):
+        """
+        Retrieve list of alerts of a project.
+        """
+        db = mlrun.db.get_run_db(secrets=self._secrets)
+        return db.list_alerts_configs(self.metadata.name)
+
+    def delete_alert_config(self, alert_name):
+        """
+        Delete an alert.
+        :param alert_name: id of the alert to delete.
+        """
+        db = mlrun.db.get_run_db(secrets=self._secrets)
+        return db.delete_alert_config(alert_name, self.metadata.name)
+
+    def reset_alert_config(self, alert_name):
+        """
+        Reset an alert.
+        :param alert_name: id of the alert to reset.
+        """
+        db = mlrun.db.get_run_db(secrets=self._secrets)
+        return db.reset_alert_config(alert_name, self.metadata.name)
+
     def _run_authenticated_git_action(
         self,
         action: Callable,
