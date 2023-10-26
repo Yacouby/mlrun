@@ -686,7 +686,6 @@ class BatchProcessor:
                 drift_status=drift_status.value,
                 drift_measure=drift_measure,
             )
-
             attributes = {
                 "current_stats": json.dumps(current_stats),
                 "drift_measures": json.dumps(drift_result),

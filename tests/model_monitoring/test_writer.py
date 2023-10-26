@@ -67,7 +67,7 @@ def test_reconstruct_event_error(event: _RawEvent, exception: type[Exception]) -
 
 @pytest.mark.parametrize(
     ("event", "expected_notification_call"),
-    [(2, True), (1, False), (0, False)],
+    [(2, True), (1, True), (0, False)],
     indirect=["event"],
 )
 def test_notifier(
@@ -75,7 +75,9 @@ def test_notifier(
     expected_notification_call: bool,
     notification_pusher: Mock,
 ) -> None:
-    _Notifier(event=event, notification_pusher=notification_pusher).notify()
+    _Notifier(event=event, notification_pusher=notification_pusher).notify(
+        project_name="dummy-app"
+    )
     assert notification_pusher.push.call_count == expected_notification_call
 
 

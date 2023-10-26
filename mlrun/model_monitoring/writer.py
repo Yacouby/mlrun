@@ -69,7 +69,10 @@ class _Notifier:
         self._severity = severity
 
     def _should_send_event(self) -> bool:
-        return self._event[WriterEvent.RESULT_STATUS] >= ResultStatusApp.detected
+        return (
+            self._event[WriterEvent.RESULT_STATUS]
+            >= ResultStatusApp.potential_detection
+        )
 
     def _generate_message(self) -> str:
         return f"""\
@@ -85,7 +88,24 @@ Status: `{self._event[WriterEvent.RESULT_STATUS]}`
 Extra data: `{self._event[WriterEvent.RESULT_EXTRA_DATA]}`\
 """
 
-    def notify(self) -> None:
+    @staticmethod
+    def _generate_event_on_drift(uid, drift_status, drift_value, project_name):
+        if (
+            drift_status == ResultStatusApp.detected
+            or drift_status == ResultStatusApp.potential_detection
+        ):
+            entity = {"kind": "model", "project": project_name, "id": uid}
+            event_kind = (
+                "drift_detected"
+                if drift_status == ResultStatusApp.detected
+                else "drift_suspected"
+            )
+            event_data = mlrun.common.schemas.Event(
+                kind=event_kind, entity=entity, value=drift_value
+            ).dict()
+            mlrun.get_run_db().generate_event(event_kind, event_data)
+
+    def notify(self, project_name) -> None:
         """Send notification if appropriate"""
         if not self._should_send_event():
             logger.debug("Not sending a notification")
@@ -93,6 +113,13 @@ Extra data: `{self._event[WriterEvent.RESULT_EXTRA_DATA]}`\
         message = self._generate_message()
         self._custom_notifier.push(message=message, severity=self._severity)
         logger.debug("A notification should have been sent")
+        if mlrun.mlconf.alerts.mode == mlrun.common.schemas.alert.AlertsModes.enabled:
+            self._generate_event_on_drift(
+                self._event[WriterEvent.ENDPOINT_ID],
+                self._event[WriterEvent.RESULT_STATUS],
+                self._event[WriterEvent.RESULT_VALUE],
+                project_name,
+            )
 
 
 class ModelMonitoringWriter(StepToDict):
@@ -232,5 +259,7 @@ class ModelMonitoringWriter(StepToDict):
         logger.info("Starting to write event", event=event)
         self._update_tsdb(event)
         self._update_kv_db(event)
-        _Notifier(event=event, notification_pusher=self._custom_notifier).notify()
+        _Notifier(event=event, notification_pusher=self._custom_notifier).notify(
+            self.project
+        )
         logger.info("Completed event DB writes")
