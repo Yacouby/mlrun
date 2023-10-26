@@ -1004,6 +1004,27 @@ class SQLRunDB(RunDBInterface):
         except DBError as exc:
             raise mlrun.db.RunDBError(exc.args) from exc
 
+    def generate_event(self, name, event_data, project=""):
+        pass
+
+    def create_alert_config(self, name, alert_data, project=""):
+        pass
+
+    def store_alert_config(self, alert_id, alert_data, project=""):
+        pass
+
+    def get_alert_config(self, alert_id, project=""):
+        pass
+
+    def list_alerts_configs(self, project=""):
+        pass
+
+    def delete_alert_config(self, alert_id, project=""):
+        pass
+
+    def reset_alert_config(self, alert_id, project=""):
+        pass
+
 
 # Once this file is imported it will override the default RunDB implementation (RunDBContainer)
 @containers.override(mlrun.db.factory.RunDBContainer)

@@ -636,6 +636,34 @@ class RunDBInterface(ABC):
     def delete_api_gateway(self, name, project=None):
         pass
 
+    @abstractmethod
+    def generate_event(self, name, event_data, project=""):
+        pass
+
+    @abstractmethod
+    def create_alert_config(self, name, alert_data, project=""):
+        pass
+
+    @abstractmethod
+    def store_alert_config(self, alert_id, alert_data, project=""):
+        pass
+
+    @abstractmethod
+    def get_alert_config(self, alert_id, project=""):
+        pass
+
+    @abstractmethod
+    def list_alerts_configs(self, project=""):
+        pass
+
+    @abstractmethod
+    def delete_alert_config(self, alert_id, project=""):
+        pass
+
+    @abstractmethod
+    def reset_alert_config(self, alert_id, project=""):
+        pass
+
     def get_builder_status(
         self,
         func: "mlrun.runtimes.BaseRuntime",

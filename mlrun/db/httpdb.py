@@ -3709,6 +3709,90 @@ class HTTPRunDB(RunDBInterface):
 
         self.api_call(method="PUT", path=_path, json=profile.dict())
 
+    def generate_event(self, name, event_data, project=""):
+        """
+        Generate an event.
+        :param name: name of the event.
+        :param event_data: the data of the event.
+        :param project: project that the event belongs to.
+        """
+        project = project or config.default_project
+        endpoint_path = f"projects/{project}/events/{name}"
+        error_message = f"post event {project}/events/{name}"
+        body = _as_json(event_data)
+        self.api_call("POST", endpoint_path, error_message, body=body)
+
+    def create_alert_config(self, name, alert_data, project=""):
+        """
+        Create an alert.
+        :param name: name of the alert.
+        :param alert_data: the data of the alert.
+        :param project: project that the alert belongs to.
+        """
+        project = project or config.default_project
+        endpoint_path = f"projects/{project}/alerts/{name}"
+        error_message = f"post alert {project}/alerts/{name}"
+        body = _as_json(alert_data)
+        self.api_call("POST", endpoint_path, error_message, body=body)
+
+    def store_alert_config(self, alert_id, alert_data, project=""):
+        """
+        Create/modify an alert.
+        :param alert_id: id of the alert.
+        :param alert_data: the data of the alert.
+        :param project: project that the alert belongs to.
+        """
+        project = project or config.default_project
+        endpoint_path = f"projects/{project}/alerts/{alert_id}"
+        error_message = f"put alert {project}/alerts/{alert_id}"
+        body = _as_json(alert_data)
+        self.api_call("PUT", endpoint_path, error_message, body=body)
+
+    def get_alert_config(self, alert_id, project=""):
+        """
+        Retrieve an alert.
+        :param alert_id: id of the alert to retrieve.
+        :param project: project that the alert belongs to.
+        """
+        project = project or config.default_project
+        endpoint_path = f"projects/{project}/alerts/{alert_id}"
+        error_message = f"get alert {project}/alerts/{alert_id}"
+        response = self.api_call("GET", endpoint_path, error_message)
+        return response.json()
+
+    def list_alerts_configs(self, project=""):
+        """
+        Retrieve list of alerts of a project.
+        :param project: Project name.
+        """
+        project = project or config.default_project
+        endpoint_path = f"projects/{project}/alerts"
+        error_message = f"get alerts {project}/alerts"
+        response = self.api_call("GET", endpoint_path, error_message)
+        return response.json()
+
+    def delete_alert_config(self, alert_id, project=""):
+        """
+        Delete an alert.
+        :param alert_id: id of the alert to delete.
+        :param project: project that the alert belongs to.
+        """
+        project = project or config.default_project
+        endpoint_path = f"projects/{project}/alerts/{alert_id}"
+        error_message = f"delete alert {project}/alerts/{alert_id}"
+        self.api_call("DELETE", endpoint_path, error_message)
+
+    def reset_alert_config(self, alert_id, project=""):
+        """
+        Reset an alert.
+        :param alert_id: id of the alert to reset.
+        :param project: project that the alert belongs to.
+        """
+        project = project or config.default_project
+        endpoint_path = f"projects/{project}/alerts/{alert_id}/reset"
+        error_message = f"post alert {project}/alerts/{alert_id}/reset"
+        self.api_call("POST", endpoint_path, error_message)
+
 
 def _as_json(obj):
     fn = getattr(obj, "to_json", None)
