@@ -97,6 +97,9 @@ def test_client_spec(
         "limits": {"cpu": "2", "memory": "1G", "gpu": ""},
     }
     server.api.api.endpoints.client_spec.get_cached_client_spec.cache_clear()
+
+    mlrun.mlconf.alerts.mode = "enabled"
+
     response = client.get("client-spec")
     assert response.status_code == http.HTTPStatus.OK.value
     response_body = response.json()
@@ -133,6 +136,8 @@ def test_client_spec(
     assert response_body["function"]["spec"]["security_context"]["enrichment_mode"] == (
         mlrun.common.schemas.SecurityContextEnrichmentModes.override
     )
+
+    assert response_body["alerts_mode"] == "enabled"
 
 
 def test_client_spec_response_based_on_client_version(
