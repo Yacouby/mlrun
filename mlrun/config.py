@@ -687,6 +687,10 @@ default_config = {
         "access_key": "",
     },
     "grafana_url": "",
+    "alerts": {
+        # supported modes: "enabled", "disabled".
+        "mode": "disabled"
+    },
 }
 
 _is_running_as_api = None
