@@ -451,7 +451,7 @@ class TestMonitoringAppFlow(TestMLRunSystem, _V3IORecordsChecker):
         # Validate that the notifications were sent on the drift
         self._validate_notifications_on_nuclio(nuclio_function_url)
 
-
+        
 @TestMLRunSystem.skip_test_if_env_not_configured
 @pytest.mark.enterprise
 class TestRecordResults(TestMLRunSystem, _V3IORecordsChecker):
