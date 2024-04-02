@@ -322,14 +322,14 @@ class TestMonitoringAppFlow(TestMLRunSystem, _V3IORecordsChecker):
 
     @classmethod
     def _create_alert_config(
-            cls,
-            project,
-            name,
-            entity_kind,
-            summary,
-            event_name,
-            nuclio_function_url,
-            criteria=None,
+        cls,
+        project,
+        name,
+        entity_kind,
+        summary,
+        event_name,
+        nuclio_function_url,
+        criteria=None,
     ):
         notifications = [
             {
@@ -432,7 +432,7 @@ class TestMonitoringAppFlow(TestMLRunSystem, _V3IORecordsChecker):
             "drift_detected",
             nuclio_function_url,
         )
-        
+
         self._infer(serving_fn, with_training_set=with_training_set)
         # mark the first window as "done" with another request
         time.sleep(
