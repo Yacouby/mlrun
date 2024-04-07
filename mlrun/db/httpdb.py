@@ -3717,21 +3717,6 @@ class HTTPRunDB(RunDBInterface):
         body = _as_json(event_data)
         self.api_call("POST", endpoint_path, error_message, body=body)
 
-    def create_alert_config(self, alert_name, alert_data, project=""):
-        """
-        Create an alert.
-        :param alert_name: name of the alert.
-        :param alert_data: the data of the alert.
-        :param project: project that the alert belongs to.
-        :return: the created alert.
-        """
-        project = project or config.default_project
-        endpoint_path = f"projects/{project}/alerts/{alert_name}"
-        error_message = f"post alert {project}/alerts/{alert_name}"
-        body = _as_json(alert_data)
-        response = self.api_call("POST", endpoint_path, error_message, body=body)
-        return response.json()
-
     def store_alert_config(self, alert_name, alert_data, project=""):
         """
         Create/modify an alert.

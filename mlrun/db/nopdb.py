@@ -549,9 +549,6 @@ class NopDB(RunDBInterface):
     def generate_event(self, name, event_data, project=""):
         pass
 
-    def create_alert_config(self, alert_name, alert_data, project=""):
-        pass
-
     def store_alert_config(self, alert_name, alert_data, project=""):
         pass
 
