@@ -33,6 +33,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
 
 import mlrun
+import mlrun.common.schemas.alert as alert_constants
 import mlrun.common.schemas.model_monitoring.constants as mm_constants
 import mlrun.feature_store
 import mlrun.feature_store as fstore
@@ -266,6 +267,16 @@ class TestMonitoringAppFlow(TestMLRunSystem, _V3IORecordsChecker):
 
         return inputs, outputs
 
+    def _deploy_notification_nuclio(self):
+        nuclio_function = self.project.set_function(
+            name="nuclio",
+            func="assets/notification_nuclio_function.py",
+            image="mlrun/mlrun" if self.image is None else self.image,
+            kind="nuclio",
+        )
+        nuclio_function.deploy()
+        return nuclio_function.spec.command
+
     @classmethod
     def _deploy_model_serving(
         cls, with_training_set: bool
@@ -307,18 +318,6 @@ class TestMonitoringAppFlow(TestMLRunSystem, _V3IORecordsChecker):
         endpoints = mlrun.get_run_db().list_model_endpoints(project=cls.project_name)
         assert endpoints and len(endpoints) == 1
         return endpoints[0].metadata.uid
-
-    @classmethod
-    def _deploy_notification_nuclio(cls):
-        nuclio_function = mlrun.code_to_function(
-            name="nuclio",
-            project=cls.project_name,
-            filename="alerts/assets/notification_nuclio_function.py",
-            image="mlrun/mlrun" if cls.image is None else cls.image,
-            kind="nuclio",
-        )
-        nuclio_function.deploy()
-        return nuclio_function.spec.command
 
     @classmethod
     def _create_alert_config(
@@ -380,7 +379,7 @@ class TestMonitoringAppFlow(TestMLRunSystem, _V3IORecordsChecker):
             notifications=notifications,
         ).dict()
 
-        mlrun.get_run_db().create_alert_config(name, alert_data)
+        mlrun.get_run_db().store_alert_config(name, alert_data)
 
     @classmethod
     def _validate_notifications_on_nuclio(cls, nuclio_function_url):
@@ -424,12 +423,14 @@ class TestMonitoringAppFlow(TestMLRunSystem, _V3IORecordsChecker):
         nuclio_function_url = self._deploy_notification_nuclio()
 
         # create an alert with two webhook notifications
+        alert_name = "drift_webhook"
+        alert_summary = "Model is drifting"
         self._create_alert_config(
             self.project_name,
-            "drift_webhook",
-            "model",
-            "Model is drifting",
-            "drift_detected",
+            alert_name,
+            alert_constants.EventEntityKind.MODEL,
+            alert_summary,
+            alert_constants.EventKind.DRIFT_DETECTED,
             nuclio_function_url,
         )
 

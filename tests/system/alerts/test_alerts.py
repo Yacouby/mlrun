@@ -20,6 +20,7 @@ import pytest
 import requests
 
 import mlrun
+import mlrun.common.schemas.alert as alert_constants
 import mlrun.model_monitoring.api
 from tests.system.base import TestMLRunSystem
 
@@ -35,21 +36,18 @@ class TestAlerts(TestMLRunSystem):
         """
         validate that an alert is sent in case a job fails
         """
-        function = mlrun.code_to_function(
+        self.project.set_function(
             name="test-func",
-            project=self.project_name,
-            filename="assets/function.py",
+            func="assets/function.py",
             handler="handler",
             image="mlrun/mlrun" if self.image is None else self.image,
             kind="job",
         )
-        task = mlrun.new_task()
 
         # nuclio function for storing notifications, to validate that alert notifications were sent on the failed job
-        nuclio_function = mlrun.code_to_function(
+        nuclio_function = self.project.set_function(
             name="nuclio",
-            project=self.project_name,
-            filename="assets/notification_nuclio_function.py",
+            func="../assets/notification_nuclio_function.py",
             image="mlrun/mlrun" if self.image is None else self.image,
             kind="nuclio",
         )
@@ -57,20 +55,22 @@ class TestAlerts(TestMLRunSystem):
         nuclio_function_url = nuclio_function.spec.command
 
         # create an alert with webhook notification
+        alert_name = "failure_webhook"
+        alert_summary = "Job failed"
         self._create_alert_config(
             self.project_name,
-            "failure_webhook",
-            "job",
-            "Job failed",
-            "failed",
+            alert_name,
+            alert_constants.EventEntityKind.JOB,
+            alert_summary,
+            alert_constants.EventKind.FAILED,
             nuclio_function_url,
         )
 
         with pytest.raises(Exception):
-            function.run(task)
+            self.project.run_function("test-func")
 
         # in order to trigger the periodic monitor runs function, to detect the failed run and send an event on it
-        time.sleep(30)
+        time.sleep(35)
 
         # Validate that the notifications was sent on the failed job
         self._validate_notifications_on_nuclio(nuclio_function_url)
@@ -116,7 +116,7 @@ class TestAlerts(TestMLRunSystem):
             notifications=notifications,
         ).dict()
 
-        mlrun.get_run_db().create_alert_config(name, alert_data)
+        mlrun.get_run_db().store_alert_config(name, alert_data)
 
     def _validate_notifications_on_nuclio(self, nuclio_function_url):
         expected_element = "notification failure"
