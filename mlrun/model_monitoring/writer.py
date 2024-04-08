@@ -70,10 +70,7 @@ class _Notifier:
         self._severity = severity
 
     def _should_send_event(self) -> bool:
-        return (
-            self._event[WriterEvent.RESULT_STATUS]
-            >= ResultStatusApp.potential_detection
-        )
+        return self._event[WriterEvent.RESULT_STATUS] >= ResultStatusApp.detected
 
     def _generate_message(self) -> str:
         return f"""\
@@ -89,28 +86,7 @@ Status: `{self._event[WriterEvent.RESULT_STATUS]}`
 Extra data: `{self._event[WriterEvent.RESULT_EXTRA_DATA]}`\
 """
 
-    @staticmethod
-    def _generate_event_on_drift(uid, drift_status, drift_value, project_name):
-        if (
-            drift_status == ResultStatusApp.detected
-            or drift_status == ResultStatusApp.potential_detection
-        ):
-            entity = {
-                "kind": alert_constants.EventEntityKind.MODEL,
-                "project": project_name,
-                "id": uid,
-            }
-            event_kind = (
-                alert_constants.EventKind.DRIFT_DETECTED
-                if drift_status == ResultStatusApp.detected
-                else alert_constants.EventKind.DRIFT_SUSPECTED
-            )
-            event_data = mlrun.common.schemas.Event(
-                kind=event_kind, entity=entity, value=drift_value
-            ).dict()
-            mlrun.get_run_db().generate_event(event_kind, event_data)
-
-    def notify(self, project_name) -> None:
+    def notify(self) -> None:
         """Send notification if appropriate"""
         if not self._should_send_event():
             logger.debug("Not sending a notification")
@@ -118,13 +94,6 @@ Extra data: `{self._event[WriterEvent.RESULT_EXTRA_DATA]}`\
         message = self._generate_message()
         self._custom_notifier.push(message=message, severity=self._severity)
         logger.debug("A notification should have been sent")
-        if mlrun.mlconf.alerts.mode == mlrun.common.schemas.alert.AlertsModes.enabled:
-            self._generate_event_on_drift(
-                self._event[WriterEvent.ENDPOINT_ID],
-                self._event[WriterEvent.RESULT_STATUS],
-                self._event[WriterEvent.RESULT_VALUE],
-                project_name,
-            )
 
 
 class ModelMonitoringWriter(StepToDict):
@@ -204,6 +173,27 @@ class ModelMonitoringWriter(StepToDict):
             )
 
     @staticmethod
+    def _generate_event_on_drift(uid, drift_status, drift_value, project_name):
+        if (
+            drift_status == ResultStatusApp.detected
+            or drift_status == ResultStatusApp.potential_detection
+        ):
+            entity = {
+                "kind": alert_constants.EventEntityKind.MODEL,
+                "project": project_name,
+                "id": uid,
+            }
+            event_kind = (
+                alert_constants.EventKind.DRIFT_DETECTED
+                if drift_status == ResultStatusApp.detected
+                else alert_constants.EventKind.DRIFT_SUSPECTED
+            )
+            event_data = mlrun.common.schemas.Event(
+                kind=event_kind, entity=entity, value=drift_value
+            ).dict()
+            mlrun.get_run_db().generate_event(event_kind, event_data)
+
+    @staticmethod
     def _reconstruct_event(event: _RawEvent) -> _AppResultEvent:
         """
         Modify the raw event into the expected monitoring application event
@@ -232,7 +222,13 @@ class ModelMonitoringWriter(StepToDict):
         logger.info("Starting to write event", event=event)
         self._update_tsdb(event)
         self._update_kv_db(event)
-        _Notifier(event=event, notification_pusher=self._custom_notifier).notify(
-            self.project
-        )
+        _Notifier(event=event, notification_pusher=self._custom_notifier).notify()
+
+        if mlrun.mlconf.alerts.mode == mlrun.common.schemas.alert.AlertsModes.enabled:
+            self._generate_event_on_drift(
+                event[WriterEvent.ENDPOINT_ID],
+                event[WriterEvent.RESULT_STATUS],
+                event[WriterEvent.RESULT_VALUE],
+                self.project,
+            )
         logger.info("Completed event DB writes")
