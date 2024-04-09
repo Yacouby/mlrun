@@ -47,6 +47,7 @@ import mlrun.runtimes.pod
 import mlrun.runtimes.utils
 import mlrun.serving
 import mlrun.utils.regex
+from mlrun.common.schemas import AlertConfig
 from mlrun.datastore.datastore_profile import DatastoreProfile, DatastoreProfile2Json
 from mlrun.runtimes.nuclio.function import RemoteRuntime
 
@@ -3757,19 +3758,21 @@ class MlrunProject(ModelObj):
 
         mlrun.db.get_run_db().delete_api_gateway(name=name, project=self.name)
 
-    def store_alert_config(self, alert_name, alert_data):
+    def store_alert_config(self, alert_data: AlertConfig, alert_name=None):
         """
         Create/modify an alert.
-        :param alert_name: id of the alert.
         :param alert_data: the data of the alert.
+        :param alert_name: name of the alert.
         """
         db = mlrun.db.get_run_db(secrets=self._secrets)
-        return db.store_alert_config(alert_name, alert_data, self.metadata.name)
+        if alert_name is None:
+            alert_name = alert_data.name
+        return db.store_alert_config(alert_name, alert_data.dict(), self.metadata.name)
 
     def get_alert_config(self, alert_name):
         """
         Retrieve an alert.
-        :param alert_name: id of the alert to retrieve.
+        :param alert_name: name of the alert to retrieve.
         """
         db = mlrun.db.get_run_db(secrets=self._secrets)
         return db.get_alert_config(alert_name, self.metadata.name)
@@ -3781,20 +3784,34 @@ class MlrunProject(ModelObj):
         db = mlrun.db.get_run_db(secrets=self._secrets)
         return db.list_alerts_configs(self.metadata.name)
 
-    def delete_alert_config(self, alert_name):
+    def delete_alert_config(self, alert_data: AlertConfig = None, alert_name=None):
         """
         Delete an alert.
-        :param alert_name: id of the alert to delete.
+        :param alert_data: the data of the alert.
+        :param alert_name: name of the alert to delete.
         """
+        if alert_data is None and alert_name is None:
+            raise ValueError(
+                "At least one of alert_data or alert_name must be provided"
+            )
         db = mlrun.db.get_run_db(secrets=self._secrets)
+        if alert_data:
+            alert_name = alert_data.name
         return db.delete_alert_config(alert_name, self.metadata.name)
 
-    def reset_alert_config(self, alert_name):
+    def reset_alert_config(self, alert_data=None, alert_name=None):
         """
         Reset an alert.
-        :param alert_name: id of the alert to reset.
+        :param alert_data: the data of the alert.
+        :param alert_name: name of the alert to reset.
         """
+        if alert_data is None and alert_name is None:
+            raise ValueError(
+                "At least one of alert_data or alert_name must be provided"
+            )
         db = mlrun.db.get_run_db(secrets=self._secrets)
+        if alert_data:
+            alert_name = alert_data.name
         return db.reset_alert_config(alert_name, self.metadata.name)
 
     def _run_authenticated_git_action(
