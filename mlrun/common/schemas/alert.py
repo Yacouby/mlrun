@@ -71,6 +71,12 @@ class AlertTrigger(pydantic.BaseModel):
     events: list[EventKind] = []
     prometheus_alert: str = None
 
+    def __eq__(self, other):
+        return (
+            self.prometheus_alert == other.prometheus_alert
+            and self.events == other.events
+        )
+
 
 class AlertCriteria(pydantic.BaseModel):
     count: Annotated[
@@ -85,6 +91,9 @@ class AlertCriteria(pydantic.BaseModel):
             description="Time period during which event occurred. e.g. 1d, 3h, 5m, 15s"
         ),
     ] = None
+
+    def __eq__(self, other):
+        return self.count == other.count and self.period == other.period
 
 
 class ResetPolicy(StrEnum):
@@ -120,3 +129,25 @@ class AlertConfig(pydantic.BaseModel):
 class AlertsModes(StrEnum):
     enabled = "enabled"
     disabled = "disabled"
+
+
+class AlertTemplate(
+    pydantic.BaseModel
+):  # Template fields that are not shared with created configs
+    template_id: int = None
+    template_name: str
+    template_description: Optional[str] = (
+        "String explaining the purpose of this template"
+    )
+
+    # A property that identifies templates that were created by the system and cannot be modified/deleted by the user
+    system_generated: bool = False
+
+    # AlertConfig fields that are pre-defined
+    description: Optional[str] = (
+        "String to be sent in the generated notifications e.g. 'Model {{ $project }}/{{ $entity }} is drifting.'"
+    )
+    severity: AlertSeverity
+    trigger: AlertTrigger
+    criteria: Optional[AlertCriteria]
+    reset_policy: ResetPolicy = ResetPolicy.MANUAL
