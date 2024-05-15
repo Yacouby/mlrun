@@ -636,6 +636,16 @@ fmt-go:
 	cd server/log-collector && \
 		make fmt
 
+.PHONY: replace-conf
+replace-conf:
+	@echo "Replacing mlrun.config.config with mlrun.mlconf..."
+	find . -type f -name '*.py' | xargs -P 4 sed -i 's/mlrun\.config\.config/mlrun\.mlconf/g' \
+
+.PHONY: check-conf
+check-conf:
+	@echo "Checking for mlrun.config.config..."
+	@grep -r -n --include='*.py' 'mlrun\.config\.config\.' && exit 1
+
 .PHONY: release
 release: ## Release a version
 ifndef MLRUN_VERSION
