@@ -25,7 +25,10 @@ import mlrun.common.schemas.model_monitoring.constants as mm_constants
 import mlrun.model_monitoring.api
 import tests.system.common.helpers.notifications as notification_helpers
 from mlrun.datastore import get_stream_pusher
-from mlrun.model_monitoring.helpers import get_stream_path
+from mlrun.model_monitoring.helpers import (
+    get_default_result_instance_fqn,
+    get_stream_path,
+)
 from tests.system.base import TestMLRunSystem
 
 
@@ -99,8 +102,8 @@ class TestAlerts(TestMLRunSystem):
         self._create_alert_config(
             self.project_name,
             alert_name,
-            alert_objects.EventEntityKind.MODEL,
-            endpoint_id,
+            alert_objects.EventEntityKind.MODEL_ENDPOINT_RESULT,
+            get_default_result_instance_fqn(endpoint_id),
             alert_summary,
             alert_objects.EventKind.DRIFT_DETECTED,
             notifications,
