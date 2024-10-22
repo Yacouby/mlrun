@@ -42,6 +42,7 @@ class Alerts(
         project: str,
         name: str,
         alert_data: mlrun.common.schemas.AlertConfig,
+        force_reset: bool = False,
     ):
         project = project or mlrun.mlconf.default_project
 
@@ -57,6 +58,13 @@ class Alerts(
         if alert is not None:
             self._delete_notifications(alert)
             self._get_alert_by_id_cached().cache_remove(session, alert.id)
+
+            for kind in alert.trigger.events:
+                server.api.crud.Events().remove_event_configuration(
+                    project, kind, alert.id
+                )
+            alert_data.created = alert.created
+            alert_data.id = alert.id
         else:
             num_alerts = (
                 server.api.utils.singletons.db.get_db().get_num_configured_alerts(
@@ -70,14 +78,6 @@ class Alerts(
 
         self._validate_and_mask_notifications(alert_data)
 
-        if alert is not None:
-            for kind in alert.trigger.events:
-                server.api.crud.Events().remove_event_configuration(
-                    project, kind, alert.id
-                )
-            alert_data.created = alert.created
-            alert_data.id = alert.id
-
         new_alert = server.api.utils.singletons.db.get_db().store_alert(
             session, alert_data
         )
@@ -87,13 +87,28 @@ class Alerts(
                 project, kind, new_alert.id
             )
 
-        self.reset_alert(session, project, new_alert.name)
+        # if the alert already exist we should check if it should be reset or not
+        if alert is not None and (
+            force_reset or self._should_reset_alert(alert, alert_data)
+        ):
+            self.reset_alert(session, project, new_alert.name)
 
         server.api.utils.singletons.db.get_db().enrich_alert(session, new_alert)
 
         logger.debug("Stored alert", alert=new_alert)
 
         return new_alert
+
+    @staticmethod
+    def _should_reset_alert(old_alert_data, alert_data):
+        # if one of these fields was modified then we should reset the alert
+        if (
+            old_alert_data.entities != alert_data.entities
+            or old_alert_data.trigger != alert_data.trigger
+            or old_alert_data.criteria != alert_data.criteria
+        ):
+            return True
+        return False
 
     def list_alerts(
         self,
@@ -271,6 +286,7 @@ class Alerts(
         event_name: str,
         event_data: mlrun.common.schemas.Event,
     ):
+        all_alerts = server.api.utils.singletons.db.get_db().get_all_alerts(session)
         for alert in server.api.utils.singletons.db.get_db().get_all_alerts(session):
             for config_event_name in alert.trigger.events:
                 if config_event_name == event_name:
