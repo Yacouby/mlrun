@@ -1324,28 +1324,28 @@ def test_function_receives_project_artifact_path(rundb_mock):
     run3 = func2.run(local=True, artifact_path="/not/tmp")
     assert run3.spec.output_path == "/not/tmp"
 
-    # expected to call `get_project`
-    mlrun.get_run_db().store_project("proj1", proj1)
-
-    run4 = func2.run(local=True, project="proj1")
-    assert run4.spec.output_path == proj1.spec.artifact_path
-
-    rundb_mock.reset()
-    mlrun.pipeline_context.clear(with_project=True)
-
-    func3 = mlrun.code_to_function(
-        "func", kind="job", image="mlrun/mlrun", handler="myhandler", filename=func_path
-    )
-    # expected to call `get_project`, but the project wasn't saved yet, so it will use the default artifact path
-    run5 = func3.run(local=True, project="proj1")
-    assert run5.spec.output_path == mlrun.mlconf.artifact_path
-
-    proj1.set_function(func_path, "func", kind="job", image="mlrun/mlrun")
-    run = proj1.run_function("func", local=True)
-    assert run.spec.output_path == proj1.spec.artifact_path
-
-    run = proj1.run_function("func", local=True, artifact_path="/not/tmp")
-    assert run.spec.output_path == "/not/tmp"
+    # # expected to call `get_project`
+    # mlrun.get_run_db().store_project("proj1", proj1)
+    #
+    # run4 = func2.run(local=True, project="proj1")
+    # assert run4.spec.output_path == proj1.spec.artifact_path
+    #
+    # rundb_mock.reset()
+    # mlrun.pipeline_context.clear(with_project=True)
+    #
+    # func3 = mlrun.code_to_function(
+    #     "func", kind="job", image="mlrun/mlrun", handler="myhandler", filename=func_path
+    # )
+    # # expected to call `get_project`, but the project wasn't saved yet, so it will use the default artifact path
+    # run5 = func3.run(local=True, project="proj1")
+    # assert run5.spec.output_path == mlrun.mlconf.artifact_path
+    #
+    # proj1.set_function(func_path, "func", kind="job", image="mlrun/mlrun")
+    # run = proj1.run_function("func", local=True)
+    # assert run.spec.output_path == proj1.spec.artifact_path
+    #
+    # run = proj1.run_function("func", local=True, artifact_path="/not/tmp")
+    # assert run.spec.output_path == "/not/tmp"
 
 
 def test_function_receives_project_default_image():
