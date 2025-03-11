@@ -3949,7 +3949,7 @@ class MlrunProject(ModelObj):
                 "'artifact_path' parameter is deprecated in 1.9.0 and will be removed in 1.11.0, "
                 "use 'output_path' instead.",
                 # TODO: Remove this in 1.11.0
-                mlrun.utils.OverwriteBuildParamsWarning,
+                FutureWarning,
             )
         output_path = output_path or artifact_path
 
