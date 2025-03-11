@@ -3943,6 +3943,7 @@ class MlrunProject(ModelObj):
 
         :return: MLRun RunObject or PipelineNodeWrapper
         """
+        logger.info("yacouby: in run_function")
         if artifact_path:
             warnings.warn(
                 "'artifact_path' parameter is deprecated in 1.9.0 and will be removed in 1.11.0, "
