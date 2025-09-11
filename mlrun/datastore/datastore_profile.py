@@ -624,6 +624,7 @@ def datastore_profile_read(url, project_name="", secrets: typing.Optional[dict] 
        pods, the private information is automatically available and no temporary registration is needed.
     """
     print("yacouby: in datastore_profile_read")
+    logger.info("yacouby: in datastore_profile_read", project_name=project_name, default=mlrun.mlconf.default_project)
     parsed_url = urlparse(url)
     if parsed_url.scheme.lower() != "ds":
         raise mlrun.errors.MLRunInvalidArgumentError(
