@@ -4673,6 +4673,7 @@ class HTTPRunDB(RunDBInterface):
     def get_datastore_profile(
         self, name: str, project: str
     ) -> Optional[mlrun.common.schemas.DatastoreProfile]:
+        logger.info("yacouby: in httpdb get_datastore_profile", default=config.default_project, project=project)
         project = project or config.default_project
         _path = self._path_of("datastore-profiles", project, name)
 
