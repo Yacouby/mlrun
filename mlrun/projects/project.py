@@ -224,6 +224,7 @@ def new_project(
 
     :returns: project object
     """
+    logger.info("yacouby: creating new project")
     context = context or "./"
     name = _add_username_to_project_name_if_needed(name, user_project)
 
@@ -5426,6 +5427,7 @@ class MlrunProject(ModelObj):
 
 
 def _set_as_current_default_project(project: MlrunProject):
+    logger.info("yacouby: setting default project", project=project.metadata.name)
     mlrun.mlconf.default_project = project.metadata.name
     pipeline_context.set(project)
 
