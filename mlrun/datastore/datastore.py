@@ -218,6 +218,7 @@ class StoreManager:
         store_key = f"{schema}://{endpoint}" if endpoint else f"{schema}://"
 
         if schema == "ds":
+            print("yacouby: in datastore create store")
             datastore_profile = datastore_profile_read(url, project_name, secrets)
             if secrets and datastore_profile.secrets():
                 secrets = merge(secrets, datastore_profile.secrets())
